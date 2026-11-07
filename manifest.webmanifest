@@ -2,7 +2,7 @@
   "name": "TEC Gate Scanner",
   "short_name": "TEC Gate",
   "description": "Student gate entry / exit scanner for Thangavelu Engineering College",
-  "start_url": "./index.html",
+  "start_url": "./scan",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

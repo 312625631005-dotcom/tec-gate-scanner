@@ -171,9 +171,14 @@
 
     <div class="row">
       <input id="manual" type="text" placeholder="Or type the barcode ID" autocomplete="off" inputmode="text">
-      <button class="btn ghost" id="manualBtn">Record</button>
+      <button class="btn ghost" id="manualBtn">Scan / Auto</button>
     </div>
 
+    <div class="row" style="margin-top:8px">
+      <button class="btn full" id="manualInBtn">Manual IN / Entry</button>
+      <button class="btn ghost full" id="manualOutBtn">Manual OUT / Exit</button>
+    </div>
+    <div class="hint">Manual buttons are for security staff when a card cannot be scanned.</div>
     <div class="result" id="result" role="status" aria-live="polite"></div>
 
     <h2>Recent scans</h2>
@@ -336,7 +341,11 @@
       const r = await callApi({ action: 'scan', barcode: code, mode: cfg.mode, gate: cfg.gate, device: cfg.device });
       busy = false;
 
-      if (r.ok) {
+      if (r && r.pending) {
+        const s = r.student || {};
+        showResult('wait', 'Hostel permission pending', '<div class="name">' + esc(s.name || code) + '</div><div class="meta">' + esc(r.message || 'Waiting for admin approval.') + '</div><div class="meta">Request: ' + esc(r.requestId || '') + '</div>');
+        addHistory('err', 'PENDING APPROVAL', s.name || code); beep(false);
+      } else if (r.ok) {
         const s = r.student || {};
         const kind = r.direction === 'IN' ? 'in' : 'out';
         showResult(kind, r.direction === 'IN' ? 'ENTRY — IN' : 'EXIT — OUT',
@@ -356,6 +365,23 @@
         delete recent[code.toUpperCase()];
       }
     }
+
+    async function manualMovement(direction) {
+      const code = $('manual').value.trim();
+      if (!code || busy) { showResult('err', 'Student ID required', '<div class="meta">Enter the barcode or register number first.</div>'); return; }
+      busy = true; showResult('wait', 'Saving manual ' + direction + '…', '<div class="meta">' + esc(code) + '</div>');
+      const r = await callApi({action:'manualScanEntry', barcode:code, direction, activity:'Gate Entry', reason:'Security manual entry', gate:cfg.gate, device:cfg.device || 'Phone Scanner'});
+      busy = false;
+      if (r && r.ok) {
+        $('manual').value = '';
+        showResult(direction === 'IN' ? 'in' : 'out', 'Manual ' + direction + ' recorded', '<div class="name">' + esc(r.student.name) + '</div><div class="meta">' + esc(r.student.reg) + ' · ' + esc(r.student.dept) + '</div><div class="meta">' + esc(r.timestamp || '') + '</div>');
+        addHistory(direction === 'IN' ? 'in' : 'out', 'MANUAL ' + direction, r.student.name || code); beep(true);
+      } else {
+        showResult('err', 'Manual entry failed', '<div class="meta">' + esc((r && r.message) || 'Could not save manual entry.') + '</div>'); beep(false);
+      }
+    }
+    $('manualInBtn').onclick = () => manualMovement('IN');
+    $('manualOutBtn').onclick = () => manualMovement('OUT');
 
     function setCameraMsg(text) {
       $('cameraMsg').textContent = text || '';

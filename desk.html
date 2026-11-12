@@ -276,6 +276,18 @@
     .btn:disabled { opacity: .6; cursor: wait; }
     .btn.secondary { background: #fff; color: var(--brand-dark); margin-top: 14px; }
     .btn.secondary:hover:not(:disabled) { color: #fff; }
+    .manual-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:16px; }
+    .btn.direction { min-height:78px; display:flex; align-items:center; justify-content:center; gap:10px; font-size:17px; border:0; box-shadow:0 5px 14px rgba(0,0,0,.10); }
+    .btn.direction .symbol { font-size:26px; line-height:1; }
+    .btn.direction small { display:block; margin:2px 0 0; font-size:12px; opacity:.9; }
+    .btn.entry { background:#15803d; border-color:#15803d; }
+    .btn.entry:hover:not(:disabled) { background:#166534; border-color:#166534; box-shadow:0 6px 16px rgba(21,128,61,.22); }
+    .btn.exit { background:#c2410c; border-color:#c2410c; }
+    .btn.exit:hover:not(:disabled) { background:#9a3412; border-color:#9a3412; box-shadow:0 6px 16px rgba(194,65,12,.22); }
+    .btn.clear { background:#fff; color:#5b4550; border-color:#d8c4ce; }
+    .btn.clear:hover:not(:disabled) { background:#f8edf2; color:#5b4550; border-color:#bda5b1; }
+    .action-hint { margin-top:12px; font-size:13px; color:var(--muted); line-height:1.5; }
+    @media (max-width:520px) { .manual-actions { grid-template-columns:1fr; } .btn.direction { min-height:66px; } .app { padding:20px; } }
     .chips {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -393,27 +405,24 @@
       autocomplete="off"
       autofocus
     >
-    <div class="actions" style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">
-      <button type="button" class="btn" id="manualInBtn">Manual IN / Entry</button>
-      <button type="button" class="btn" id="manualOutBtn">Manual OUT / Exit</button>
-    </div>
-    <div class="small">Use these buttons when the barcode cannot be scanned. Enter the student barcode/register number in the box above first.</div>
+    <div class="small" style="margin-top:8px">Scan a student ID or type the barcode/register number, then choose the correct action below. Scanning only verifies the student; it does not record entry or exit by itself.</div>
     <div id="scanbar" class="scanbar"></div>
 
     <div id="studentPanel" class="panel" hidden></div>
-
-    <div id="message" role="status" aria-live="polite"
-         class="status info">
-      Ready. Scan a student barcode to record entry or exit automatically.
+    <div id="manualActions" class="manual-actions" hidden>
+      <button type="button" class="btn direction entry" id="manualInBtn"><span class="symbol" aria-hidden="true">↘</span><span>ENTRY <small>(IN)</small></span></button>
+      <button type="button" class="btn direction exit" id="manualOutBtn"><span class="symbol" aria-hidden="true">↗</span><span>EXIT <small>(OUT)</small></span></button>
+    </div>
+    <div id="actionHint" class="action-hint" hidden>Green = student entering campus. Orange = student leaving campus. Confirm the student details before selecting an action.</div>
+    <div class="actions" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+      <button type="button" class="btn clear" id="clearStudentBtn">↺ Clear / Scan Next Student</button>
     </div>
 
-    <div class="small">
-      Automatic mode: first scan records EXIT (OUT).
-      The next scan for that student records ENTRY (IN).
-      The direction alternates with each valid scan.
-      Your barcode scanner must send Enter after scanning.
-      Duplicate scans within 10 seconds are ignored.
+    <div id="message" role="status" aria-live="polite" class="status info">
+      Ready. Scan a student barcode to display their details and choose Entry or Exit.
     </div>
+
+    <div class="small">Convenience: use a USB barcode scanner (with Enter suffix), or type a barcode/register number and press Enter. Each scan requires an explicit Entry or Exit selection to avoid accidental records. Duplicate scans are ignored briefly in this browser.</div>
   </main>
 
   <section class="app reports-card" id="reportsCard">
@@ -457,11 +466,17 @@
     let busy = false;
     let lastProcessedCode = '';
     let lastProcessedAt = 0;
+    let selectedBarcode = '';
+    let selectedStudent = null;
 
     const barcodeInput = document.getElementById('barcode');
     const panel = document.getElementById('studentPanel');
     const messageBox = document.getElementById('message');
     const scanbar = document.getElementById('scanbar');
+    const manualActions = document.getElementById('manualActions');
+    const actionHint = document.getElementById('actionHint');
+    const manualInBtn = document.getElementById('manualInBtn');
+    const manualOutBtn = document.getElementById('manualOutBtn');
 
     // Split the college name into letters for the staggered reveal.
     (function animateName() {
@@ -521,94 +536,112 @@
       panel.classList.add('enter');
     }
 
+    function setActionButtonsEnabled(enabled) {
+      manualInBtn.disabled = !enabled;
+      manualOutBtn.disabled = !enabled;
+      document.getElementById('clearStudentBtn').disabled = !enabled && busy;
+    }
+
+    function clearSelectedStudent(keepMessage) {
+      selectedBarcode = '';
+      selectedStudent = null;
+      panel.hidden = true;
+      manualActions.hidden = true;
+      actionHint.hidden = true;
+      barcodeInput.value = '';
+      barcodeInput.disabled = false;
+      barcodeInput.focus();
+      if (!keepMessage) setMessage('Ready for the next student. Scan or type a barcode.', 'info');
+    }
+
     function processManual(direction) {
-      const code = barcodeInput.value.trim();
-      if (!code || busy) { setMessage('Enter or scan a student barcode first.', 'error'); barcodeInput.focus(); return; }
-      busy = true; barcodeInput.disabled = true;
-      setMessage('Saving manual ' + direction + '…', 'info');
+      const code = selectedBarcode || barcodeInput.value.trim();
+      if (!code || busy) {
+        setMessage('Scan and verify a student first, then choose Entry or Exit.', 'error');
+        barcodeInput.focus();
+        return;
+      }
+      if (!selectedStudent) {
+        setMessage('Please scan and verify the student before recording a gate action.', 'error');
+        return;
+      }
+      busy = true;
+      manualInBtn.disabled = true;
+      manualOutBtn.disabled = true;
+      document.getElementById('clearStudentBtn').disabled = true;
+      setMessage(direction === 'IN' ? 'Recording ENTRY (IN)…' : 'Recording EXIT (OUT)…', 'info');
       google.script.run.withSuccessHandler(result => {
-        busy = false; barcodeInput.disabled = false; barcodeInput.value = ''; barcodeInput.focus();
+        busy = false;
+        manualInBtn.disabled = false;
+        manualOutBtn.disabled = false;
+        document.getElementById('clearStudentBtn').disabled = false;
         if (result && result.student) showStudent(result.student);
-        if (result && result.ok) setMessage('Manual ' + direction + ' recorded for ' + result.student.name + ' at ' + result.timestamp, 'success');
-        else setMessage((result && result.message) || 'Manual entry failed.', 'error');
+        if (result && result.ok) {
+          const label = result.direction === 'IN' ? '✅ ENTRY (IN)' : '🚪 EXIT (OUT)';
+          setMessage(label + ' recorded for ' + result.student.name + ' at ' + result.timestamp + '. You can now clear the student or record the other direction if required.', 'success');
+          lastProcessedCode = code.toUpperCase();
+          lastProcessedAt = Date.now();
+        } else {
+          setMessage((result && result.message) || 'Gate action was not recorded.', 'error');
+        }
+        barcodeInput.disabled = false;
       }).withFailureHandler(error => {
-        busy = false; barcodeInput.disabled = false; barcodeInput.focus();
-        setMessage((error && error.message) || 'Manual entry failed.', 'error');
+        busy = false;
+        manualInBtn.disabled = false;
+        manualOutBtn.disabled = false;
+        document.getElementById('clearStudentBtn').disabled = false;
+        barcodeInput.disabled = false;
+        setMessage((error && error.message) || 'Could not record the gate action. Check the connection and try again.', 'error');
       }).manualEntryFromDesk(code, direction, 'Main Gate', 'Security Desk');
     }
-    document.getElementById('manualInBtn').addEventListener('click', () => processManual('IN'));
-    document.getElementById('manualOutBtn').addEventListener('click', () => processManual('OUT'));
+    manualInBtn.addEventListener('click', () => processManual('IN'));
+    manualOutBtn.addEventListener('click', () => processManual('OUT'));
+    document.getElementById('clearStudentBtn').addEventListener('click', () => clearSelectedStudent(false));
 
     function processScan() {
       if (busy) return;
-
       const code = barcodeInput.value.trim();
       if (!code) return;
-
       const now = Date.now();
-
-      // Ignore an accidental immediate repeat in this browser.
-      if (
-        code.toUpperCase() === lastProcessedCode &&
-        now - lastProcessedAt < 2500
-      ) {
-        barcodeInput.value = '';
+      if (code.toUpperCase() === lastProcessedCode && now - lastProcessedAt < 1200 && selectedBarcode === code) {
+        setMessage('This student is already selected. Choose Entry or Exit, or clear to scan another student.', 'info');
         return;
       }
-
       busy = true;
       barcodeInput.disabled = true;
       scanbar.classList.add('active');
-
-      setMessage('Checking student and recording automatically...', 'info');
-
-      google.script.run
-        .withSuccessHandler(result => {
-          busy = false;
-          barcodeInput.disabled = false;
+      manualActions.hidden = true;
+      actionHint.hidden = true;
+      setMessage('Verifying student details…', 'info');
+      google.script.run.withSuccessHandler(result => {
+        busy = false;
+        barcodeInput.disabled = false;
+        scanbar.classList.remove('active');
+        if (result && result.found && result.student) {
+          selectedBarcode = result.student.barcode || code;
+          selectedStudent = result.student;
+          showStudent(result.student);
+          manualActions.hidden = false;
+          actionHint.hidden = false;
+          barcodeInput.value = selectedBarcode;
+          setMessage('Student verified. Select the correct action: green ENTRY (IN) or orange EXIT (OUT).', 'success');
+        } else {
+          selectedBarcode = '';
+          selectedStudent = null;
+          panel.hidden = true;
+          manualActions.hidden = true;
+          actionHint.hidden = true;
           barcodeInput.value = '';
-          barcodeInput.focus();
-          scanbar.classList.remove('active');
-
-          if (result && result.student) {
-            showStudent(result.student);
-          }
-
-          if (result && result.pending) {
-            setMessage(result.message || 'Hostel outing request is waiting for admin approval.', 'info');
-          } else if (result && result.ok) {
-            lastProcessedCode = code.toUpperCase();
-            lastProcessedAt = Date.now();
-
-            const directionText = result.direction === 'IN'
-              ? 'ENTRY — IN'
-              : 'EXIT — OUT';
-
-            setMessage(
-              directionText + ' recorded successfully at ' + result.timestamp,
-              'success'
-            );
-          } else {
-            setMessage(
-              (result && result.message) || 'Scan was not recorded.',
-              'error'
-            );
-          }
-        })
-        .withFailureHandler(error => {
-          busy = false;
-          barcodeInput.disabled = false;
-          barcodeInput.value = '';
-          barcodeInput.focus();
-          scanbar.classList.remove('active');
-
-          setMessage(
-            (error && error.message) ||
-            'Could not process scan. Check the connection and try again.',
-            'error'
-          );
-        })
-        .autoRecordScan(code);
+          setMessage((result && result.message) || 'Student not found. Check the barcode and try again.', 'error');
+        }
+        barcodeInput.focus();
+      }).withFailureHandler(error => {
+        busy = false;
+        barcodeInput.disabled = false;
+        scanbar.classList.remove('active');
+        setMessage((error && error.message) || 'Could not verify student. Check the connection and try again.', 'error');
+        barcodeInput.focus();
+      }).getStudent(code);
     }
 
     /* ---------- Reports ---------- */

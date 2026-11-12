@@ -393,6 +393,11 @@
       autocomplete="off"
       autofocus
     >
+    <div class="actions" style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">
+      <button type="button" class="btn" id="manualInBtn">Manual IN / Entry</button>
+      <button type="button" class="btn" id="manualOutBtn">Manual OUT / Exit</button>
+    </div>
+    <div class="small">Use these buttons when the barcode cannot be scanned. Enter the student barcode/register number in the box above first.</div>
     <div id="scanbar" class="scanbar"></div>
 
     <div id="studentPanel" class="panel" hidden></div>
@@ -516,6 +521,24 @@
       panel.classList.add('enter');
     }
 
+    function processManual(direction) {
+      const code = barcodeInput.value.trim();
+      if (!code || busy) { setMessage('Enter or scan a student barcode first.', 'error'); barcodeInput.focus(); return; }
+      busy = true; barcodeInput.disabled = true;
+      setMessage('Saving manual ' + direction + '…', 'info');
+      google.script.run.withSuccessHandler(result => {
+        busy = false; barcodeInput.disabled = false; barcodeInput.value = ''; barcodeInput.focus();
+        if (result && result.student) showStudent(result.student);
+        if (result && result.ok) setMessage('Manual ' + direction + ' recorded for ' + result.student.name + ' at ' + result.timestamp, 'success');
+        else setMessage((result && result.message) || 'Manual entry failed.', 'error');
+      }).withFailureHandler(error => {
+        busy = false; barcodeInput.disabled = false; barcodeInput.focus();
+        setMessage((error && error.message) || 'Manual entry failed.', 'error');
+      }).manualEntryFromDesk(code, direction, 'Main Gate', 'Security Desk');
+    }
+    document.getElementById('manualInBtn').addEventListener('click', () => processManual('IN'));
+    document.getElementById('manualOutBtn').addEventListener('click', () => processManual('OUT'));
+
     function processScan() {
       if (busy) return;
 
@@ -551,7 +574,9 @@
             showStudent(result.student);
           }
 
-          if (result && result.ok) {
+          if (result && result.pending) {
+            setMessage(result.message || 'Hostel outing request is waiting for admin approval.', 'info');
+          } else if (result && result.ok) {
             lastProcessedCode = code.toUpperCase();
             lastProcessedAt = Date.now();
 

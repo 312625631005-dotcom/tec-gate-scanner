@@ -104,13 +104,6 @@
       animation: ruleGrow 1.1s 1.2s var(--ease) forwards;
     }
 
-    .desk-settings-toggle { display:inline-flex; align-items:center; gap:8px; border:1px solid var(--line); background:#fff; color:var(--brand-dark); border-radius:10px; padding:10px 14px; font:inherit; font-weight:700; cursor:pointer; margin:0 0 12px; }
-    .desk-settings { display:none; max-width:700px; margin:0 auto 16px; padding:18px; border:1px solid var(--line); border-radius:14px; background:#fff; box-shadow:0 8px 24px rgba(125,0,64,.08); }
-    .desk-settings.open { display:block; }
-    .desk-settings label { margin-top:10px; }
-    .desk-settings select, .desk-settings input { width:100%; padding:12px; border:2px solid #d9c3cf; border-radius:10px; font:inherit; background:#fff; }
-    .mode-status { display:inline-block; border-radius:999px; padding:5px 10px; margin:0 0 12px; background:#f9e3ee; color:var(--brand-dark); font-weight:800; font-size:13px; }
-
     /* ---------- Scanner card ---------- */
     .app {
       max-width: 700px;
@@ -283,18 +276,6 @@
     .btn:disabled { opacity: .6; cursor: wait; }
     .btn.secondary { background: #fff; color: var(--brand-dark); margin-top: 14px; }
     .btn.secondary:hover:not(:disabled) { color: #fff; }
-    .manual-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:16px; }
-    .btn.direction { min-height:78px; display:flex; align-items:center; justify-content:center; gap:10px; font-size:17px; border:0; box-shadow:0 5px 14px rgba(0,0,0,.10); }
-    .btn.direction .symbol { font-size:26px; line-height:1; }
-    .btn.direction small { display:block; margin:2px 0 0; font-size:12px; opacity:.9; }
-    .btn.entry { background:#15803d; border-color:#15803d; }
-    .btn.entry:hover:not(:disabled) { background:#166534; border-color:#166534; box-shadow:0 6px 16px rgba(21,128,61,.22); }
-    .btn.exit { background:#c2410c; border-color:#c2410c; }
-    .btn.exit:hover:not(:disabled) { background:#9a3412; border-color:#9a3412; box-shadow:0 6px 16px rgba(194,65,12,.22); }
-    .btn.clear { background:#fff; color:#5b4550; border-color:#d8c4ce; }
-    .btn.clear:hover:not(:disabled) { background:#f8edf2; color:#5b4550; border-color:#bda5b1; }
-    .action-hint { margin-top:12px; font-size:13px; color:var(--muted); line-height:1.5; }
-    @media (max-width:520px) { .manual-actions { grid-template-columns:1fr; } .btn.direction { min-height:66px; } .app { padding:20px; } }
     .chips {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -384,7 +365,12 @@
         transition-duration: .01ms !important;
       }
     }
-  </style>
+  
+    .settings-toggle { display:block; margin:0 0 14px auto; padding:10px 14px; border:1px solid #d7dce5; border-radius:10px; background:#fff; cursor:pointer; font-weight:600; }
+    .settings-panel { display:none; margin:0 0 16px; padding:16px; border:1px solid #d7dce5; border-radius:12px; background:#fff; }
+    .settings-panel.open { display:block; }
+    .settings-panel select { width:100%; padding:10px; margin:8px 0 12px; border:1px solid #cbd5e1; border-radius:8px; }
+</style>
 </head>
 <body>
   <header class="brand">
@@ -400,30 +386,19 @@
     <div class="rule"></div>
   </header>
 
-  <div style="max-width:700px;margin:0 auto;text-align:right;padding-top:8px">
-    <button type="button" class="desk-settings-toggle" id="deskSettingsToggle">⚙️ Scan Settings</button>
-  </div>
-  <section class="desk-settings" id="deskSettings" aria-label="Security desk scan settings">
-    <h2 style="margin:0 0 8px">⚙️ Scan Settings</h2>
-    <label for="deskScanMode">Scan mode</label>
-    <select id="deskScanMode">
-      <option value="AUTO">⚡ Auto IN / OUT (automatic)</option>
-      <option value="MANUAL">✋ Manual IN / OUT (choose after scan)</option>
-      <option value="IN">🟢 Only IN — every scan records Entry</option>
-      <option value="OUT">🟠 Only OUT — every scan records Exit</option>
-    </select>
-    <label for="deskGateName">Gate name</label>
-    <input id="deskGateName" value="Main Gate" autocomplete="off">
-    <label for="deskDeviceName">Device name</label>
-    <input id="deskDeviceName" value="Security Desk" autocomplete="off">
-    <div class="small" style="margin-top:8px">Choose one mode and press Save. This setting applies to this security desk only. Auto starts with EXIT (OUT), then alternates IN, OUT, IN, OUT based on each student’s latest recorded direction. Manual shows separate Entry and Exit buttons after student verification. Only IN and Only OUT always record the selected direction.</div>
-    <button type="button" class="btn" id="saveDeskSettings" style="margin-top:12px">💾 Save Settings</button>
-    <span id="deskSettingsMessage" class="small" style="display:inline-block;margin-left:8px"></span>
-  </section>
   <main class="app">
     <h2 class="app-title">Student Gate Entry / Exit</h2>
-    <div class="subtitle" id="deskSubtitle">Main Gate · Security Desk</div>
-    <div class="mode-status" id="deskModeStatus">✋ Manual IN / OUT</div>
+    <div class="subtitle">Main Gate · Security Desk</div>
+
+    <button type="button" class="settings-toggle" id="settingsToggle">⚙️ Settings</button>
+    <section class="settings-panel" id="settingsPanel" aria-label="Scan settings">
+      <label for="scanMode">Scan option</label>
+      <select id="scanMode">
+        <option value="AUTO">Automatic (default)</option>
+        <option value="MANUAL">Manual Entry / Exit</option>
+      </select>
+      <div class="small">Automatic records entry/exit automatically. Manual mode lets you choose Entry or Exit after scanning.</div>
+    </section>
 
     <label for="barcode">Scan student barcode</label>
     <input
@@ -433,24 +408,27 @@
       autocomplete="off"
       autofocus
     >
-    <div class="small" style="margin-top:8px">Scan a student ID or type the barcode/register number. The selected Scan Mode controls what happens next: Auto records automatically, Manual asks you to choose Entry or Exit, and Only IN / Only OUT records that direction.</div>
+    <div class="actions" id="manualActions" style="display:none;gap:10px;flex-wrap:wrap;margin:12px 0">
+      <button type="button" class="btn" id="manualInBtn">Manual IN / Entry</button>
+      <button type="button" class="btn" id="manualOutBtn">Manual OUT / Exit</button>
+    </div>
+    <div class="small">Use these buttons when the barcode cannot be scanned. Enter the student barcode/register number in the box above first.</div>
     <div id="scanbar" class="scanbar"></div>
 
     <div id="studentPanel" class="panel" hidden></div>
-    <div id="manualActions" class="manual-actions" hidden>
-      <button type="button" class="btn direction entry" id="manualInBtn"><span class="symbol" aria-hidden="true">↘</span><span>ENTRY <small>(IN)</small></span></button>
-      <button type="button" class="btn direction exit" id="manualOutBtn"><span class="symbol" aria-hidden="true">↗</span><span>EXIT <small>(OUT)</small></span></button>
-    </div>
-    <div id="actionHint" class="action-hint" hidden>Green = student entering campus. Orange = student leaving campus. Confirm the student details before selecting an action.</div>
-    <div class="actions" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
-      <button type="button" class="btn clear" id="clearStudentBtn">↺ Clear / Scan Next Student</button>
+
+    <div id="message" role="status" aria-live="polite"
+         class="status info">
+      Ready. Scan a student barcode to record entry or exit automatically.
     </div>
 
-    <div id="message" role="status" aria-live="polite" class="status info">
-      Ready. Scan a student barcode. The active Scan Mode determines the action.
+    <div class="small">
+      Automatic mode: first scan records EXIT (OUT).
+      The next scan for that student records ENTRY (IN).
+      The direction alternates with each valid scan.
+      Your barcode scanner must send Enter after scanning.
+      Duplicate scans within 10 seconds are ignored.
     </div>
-
-    <div class="small">Convenience: use a USB barcode scanner (with Enter suffix), or type a barcode/register number and press Enter. Each scan requires an explicit Entry or Exit selection to avoid accidental records. Duplicate scans are ignored briefly in this browser.</div>
   </main>
 
   <section class="app reports-card" id="reportsCard">
@@ -494,44 +472,26 @@
     let busy = false;
     let lastProcessedCode = '';
     let lastProcessedAt = 0;
-    let selectedBarcode = '';
-    let selectedStudent = null;
 
     const barcodeInput = document.getElementById('barcode');
     const panel = document.getElementById('studentPanel');
     const messageBox = document.getElementById('message');
     const scanbar = document.getElementById('scanbar');
+    const settingsToggle = document.getElementById('settingsToggle');
+    const settingsPanel = document.getElementById('settingsPanel');
+    const scanModeSelect = document.getElementById('scanMode');
     const manualActions = document.getElementById('manualActions');
-    const actionHint = document.getElementById('actionHint');
-    const manualInBtn = document.getElementById('manualInBtn');
-    const manualOutBtn = document.getElementById('manualOutBtn');
-    const DESK_CONFIG_KEY = 'tecSecurityDeskConfig';
-    let deskConfig = Object.assign({ mode: 'MANUAL', gate: 'Main Gate', device: 'Security Desk' }, safeParseDesk(localStorage.getItem(DESK_CONFIG_KEY)));
-    function safeParseDesk(raw) { try { return JSON.parse(raw) || {}; } catch (_) { return {}; } }
-    function applyDeskConfig() {
-      document.getElementById('deskScanMode').value = deskConfig.mode;
-      document.getElementById('deskGateName').value = deskConfig.gate || 'Main Gate';
-      document.getElementById('deskDeviceName').value = deskConfig.device || 'Security Desk';
-      document.getElementById('deskModeStatus').textContent = deskConfig.mode === 'AUTO' ? '⚡ Auto IN / OUT' : deskConfig.mode === 'IN' ? '🟢 Entry-only (IN)' : deskConfig.mode === 'OUT' ? '🟠 Exit-only (OUT)' : '✋ Manual IN / OUT';
-      document.getElementById('deskSubtitle').textContent = (deskConfig.gate || 'Main Gate') + ' · ' + (deskConfig.device || 'Security Desk');
-      const scanHelp = document.querySelector('.app .small');
-      if (scanHelp) scanHelp.textContent = deskConfig.mode === 'MANUAL'
-        ? 'Manual mode: scan and verify the student, then choose green ENTRY (IN) or orange EXIT (OUT).'
-        : deskConfig.mode === 'AUTO'
-          ? 'Auto mode: the first valid scan starts with EXIT (OUT). The next scan alternates to ENTRY (IN), then EXIT (OUT), based on the student’s latest recorded direction.'
-          : deskConfig.mode === 'IN'
-            ? 'Only IN mode: every valid scan records ENTRY (IN).'
-            : 'Only OUT mode: every valid scan records EXIT (OUT). Hostel students still require approval before an OUT is recorded.';
-      manualActions.hidden = true; actionHint.hidden = true;
-    }
-    document.getElementById('deskSettingsToggle').addEventListener('click', () => document.getElementById('deskSettings').classList.toggle('open'));
-    document.getElementById('saveDeskSettings').addEventListener('click', () => {
-      deskConfig = { mode: document.getElementById('deskScanMode').value, gate: document.getElementById('deskGateName').value.trim() || 'Main Gate', device: document.getElementById('deskDeviceName').value.trim() || 'Security Desk' };
-      localStorage.setItem(DESK_CONFIG_KEY, JSON.stringify(deskConfig)); applyDeskConfig();
-      document.getElementById('deskSettingsMessage').textContent = 'Saved on this device.';
-      setMessage('Settings saved. Active mode: ' + deskConfig.mode + '.', 'success');
+    let scanMode = localStorage.getItem('tecDeskScanMode') || 'AUTO';
+    scanModeSelect.value = scanMode;
+    manualActions.style.display = scanMode === 'MANUAL' ? 'flex' : 'none';
+    settingsToggle.addEventListener('click', () => settingsPanel.classList.toggle('open'));
+    scanModeSelect.addEventListener('change', () => {
+      scanMode = scanModeSelect.value;
+      localStorage.setItem('tecDeskScanMode', scanMode);
+      manualActions.style.display = scanMode === 'MANUAL' ? 'flex' : 'none';
+      setMessage(scanMode === 'AUTO' ? 'Automatic scan mode selected.' : 'Manual mode selected. Scan a student, then choose Entry or Exit.', 'info');
+      barcodeInput.focus();
     });
-    applyDeskConfig();
 
     // Split the college name into letters for the staggered reveal.
     (function animateName() {
@@ -591,131 +551,99 @@
       panel.classList.add('enter');
     }
 
-    function setActionButtonsEnabled(enabled) {
-      manualInBtn.disabled = !enabled;
-      manualOutBtn.disabled = !enabled;
-      document.getElementById('clearStudentBtn').disabled = !enabled && busy;
-    }
-
-    function clearSelectedStudent(keepMessage) {
-      selectedBarcode = '';
-      selectedStudent = null;
-      panel.hidden = true;
-      manualActions.hidden = true;
-      actionHint.hidden = true;
-      barcodeInput.value = '';
-      barcodeInput.disabled = false;
-      barcodeInput.focus();
-      if (!keepMessage) setMessage('Ready for the next student. Scan or type a barcode.', 'info');
-    }
-
     function processManual(direction) {
-      const code = selectedBarcode || barcodeInput.value.trim();
-      if (!code || busy) {
-        setMessage('Scan and verify a student first, then choose Entry or Exit.', 'error');
-        barcodeInput.focus();
-        return;
-      }
-      if (!selectedStudent) {
-        setMessage('Please scan and verify the student before recording a gate action.', 'error');
-        return;
-      }
-      busy = true;
-      manualInBtn.disabled = true;
-      manualOutBtn.disabled = true;
-      document.getElementById('clearStudentBtn').disabled = true;
-      setMessage(direction === 'IN' ? 'Recording ENTRY (IN)…' : 'Recording EXIT (OUT)…', 'info');
+      const code = barcodeInput.value.trim();
+      if (!code || busy) { setMessage('Enter or scan a student barcode first.', 'error'); barcodeInput.focus(); return; }
+      busy = true; barcodeInput.disabled = true;
+      setMessage('Saving manual ' + direction + '…', 'info');
       google.script.run.withSuccessHandler(result => {
-        busy = false;
-        manualInBtn.disabled = false;
-        manualOutBtn.disabled = false;
-        document.getElementById('clearStudentBtn').disabled = false;
+        busy = false; barcodeInput.disabled = false; barcodeInput.value = ''; barcodeInput.focus();
         if (result && result.student) showStudent(result.student);
-        if (result && result.ok) {
-          const label = result.direction === 'IN' ? '✅ ENTRY (IN)' : '🚪 EXIT (OUT)';
-          setMessage(label + ' recorded for ' + result.student.name + ' at ' + result.timestamp + '. You can now clear the student or record the other direction if required.', 'success');
-          lastProcessedCode = code.toUpperCase();
-          lastProcessedAt = Date.now();
-        } else {
-          setMessage((result && result.message) || 'Gate action was not recorded.', 'error');
-        }
-        barcodeInput.disabled = false;
+        if (result && result.ok) setMessage('Manual ' + direction + ' recorded for ' + result.student.name + ' at ' + result.timestamp, 'success');
+        else setMessage((result && result.message) || 'Manual entry failed.', 'error');
       }).withFailureHandler(error => {
-        busy = false;
-        manualInBtn.disabled = false;
-        manualOutBtn.disabled = false;
-        document.getElementById('clearStudentBtn').disabled = false;
-        barcodeInput.disabled = false;
-        setMessage((error && error.message) || 'Could not record the gate action. Check the connection and try again.', 'error');
-      }).manualEntryFromDesk(code, direction, deskConfig.gate, deskConfig.device);
+        busy = false; barcodeInput.disabled = false; barcodeInput.focus();
+        setMessage((error && error.message) || 'Manual entry failed.', 'error');
+      }).manualEntryFromDesk(code, direction, 'Main Gate', 'Security Desk');
     }
-    manualInBtn.addEventListener('click', () => processManual('IN'));
-    manualOutBtn.addEventListener('click', () => processManual('OUT'));
-    document.getElementById('clearStudentBtn').addEventListener('click', () => clearSelectedStudent(false));
+    document.getElementById('manualInBtn').addEventListener('click', () => processManual('IN'));
+    document.getElementById('manualOutBtn').addEventListener('click', () => processManual('OUT'));
 
     function processScan() {
       if (busy) return;
+
       const code = barcodeInput.value.trim();
       if (!code) return;
-      const now = Date.now();
-      if (code.toUpperCase() === lastProcessedCode && now - lastProcessedAt < 1200 && selectedBarcode === code) {
-        setMessage('This student is already selected. Choose Entry or Exit, or clear to scan another student.', 'info');
+
+      if (scanMode === 'MANUAL') {
+        setMessage('Student barcode ready. Choose Manual IN / Entry or Manual OUT / Exit.', 'info');
         return;
       }
+
+      const now = Date.now();
+
+      // Ignore an accidental immediate repeat in this browser.
+      if (
+        code.toUpperCase() === lastProcessedCode &&
+        now - lastProcessedAt < 2500
+      ) {
+        barcodeInput.value = '';
+        return;
+      }
+
       busy = true;
       barcodeInput.disabled = true;
       scanbar.classList.add('active');
-      manualActions.hidden = true;
-      actionHint.hidden = true;
-      setMessage('Verifying student details…', 'info');
-      if (deskConfig.mode !== 'MANUAL') {
-        google.script.run.withSuccessHandler(result => {
-          busy = false; barcodeInput.disabled = false; scanbar.classList.remove('active');
-          if (result && result.ok) {
-            if (result.student) { selectedBarcode = result.student.barcode || code; selectedStudent = result.student; showStudent(result.student); }
-            const direction = result.direction === 'IN' ? '🟢 ENTRY (IN)' : '🟠 EXIT (OUT)';
-            setMessage(direction + ' recorded for ' + ((result.student && result.student.name) || code) + ' at ' + (result.timestamp || '') + '.', 'success');
-            lastProcessedCode = code.toUpperCase(); lastProcessedAt = Date.now(); manualActions.hidden = true; actionHint.hidden = true;
-          } else {
-            selectedBarcode = ''; selectedStudent = null; panel.hidden = true; manualActions.hidden = true; actionHint.hidden = true;
-            setMessage((result && result.message) || 'Gate action was not recorded.', 'error');
-          }
-          barcodeInput.value = ''; barcodeInput.focus();
-        }).withFailureHandler(error => {
-          busy = false; barcodeInput.disabled = false; scanbar.classList.remove('active');
-          setMessage((error && error.message) || 'Could not record gate action.', 'error'); barcodeInput.focus();
-        }).autoRecordScan(code, { mode: deskConfig.mode, gate: deskConfig.gate, device: deskConfig.device });
-        return;
-      }
-      google.script.run.withSuccessHandler(result => {
-        busy = false;
-        barcodeInput.disabled = false;
-        scanbar.classList.remove('active');
-        if (result && result.found && result.student) {
-          selectedBarcode = result.student.barcode || code;
-          selectedStudent = result.student;
-          showStudent(result.student);
-          manualActions.hidden = false;
-          actionHint.hidden = false;
-          barcodeInput.value = selectedBarcode;
-          setMessage('Student verified. Select the correct action: green ENTRY (IN) or orange EXIT (OUT).', 'success');
-        } else {
-          selectedBarcode = '';
-          selectedStudent = null;
-          panel.hidden = true;
-          manualActions.hidden = true;
-          actionHint.hidden = true;
+
+      setMessage('Checking student and recording automatically...', 'info');
+
+      google.script.run
+        .withSuccessHandler(result => {
+          busy = false;
+          barcodeInput.disabled = false;
           barcodeInput.value = '';
-          setMessage((result && result.message) || 'Student not found. Check the barcode and try again.', 'error');
-        }
-        barcodeInput.focus();
-      }).withFailureHandler(error => {
-        busy = false;
-        barcodeInput.disabled = false;
-        scanbar.classList.remove('active');
-        setMessage((error && error.message) || 'Could not verify student. Check the connection and try again.', 'error');
-        barcodeInput.focus();
-      }).getStudent(code);
+          barcodeInput.focus();
+          scanbar.classList.remove('active');
+
+          if (result && result.student) {
+            showStudent(result.student);
+          }
+
+          if (result && result.pending) {
+            setMessage(result.message || 'Hostel outing request is waiting for admin approval.', 'info');
+          } else if (result && result.ok) {
+            lastProcessedCode = code.toUpperCase();
+            lastProcessedAt = Date.now();
+
+            const directionText = result.direction === 'IN'
+              ? 'ENTRY — IN'
+              : 'EXIT — OUT';
+
+            setMessage(
+              directionText + ' recorded successfully at ' + result.timestamp,
+              'success'
+            );
+          } else {
+            setMessage(
+              (result && result.message) || 'Scan was not recorded.',
+              'error'
+            );
+          }
+        })
+        .withFailureHandler(error => {
+          busy = false;
+          barcodeInput.disabled = false;
+          barcodeInput.value = '';
+          barcodeInput.focus();
+          scanbar.classList.remove('active');
+
+          setMessage(
+            (error && error.message) ||
+            'Could not process scan. Check the connection and try again.',
+            'error'
+          );
+        })
+        .autoRecordScan(code);
     }
 
     /* ---------- Reports ---------- */

@@ -174,11 +174,11 @@
       <button class="btn ghost" id="manualBtn">Scan / Auto</button>
     </div>
 
-    <div class="row" style="margin-top:8px">
-      <button class="btn full" id="manualInBtn">Manual IN / Entry</button>
-      <button class="btn ghost full" id="manualOutBtn">Manual OUT / Exit</button>
+    <div class="row" id="manualActions" style="margin-top:8px" hidden>
+      <button class="btn full" id="manualInBtn">🟢 Manual IN / Entry</button>
+      <button class="btn ghost full" id="manualOutBtn">🟠 Manual OUT / Exit</button>
     </div>
-    <div class="hint">Manual buttons are for security staff when a card cannot be scanned.</div>
+    <div class="hint" id="manualModeHint" hidden>Manual mode: scan or type a student ID, verify the details, then choose green ENTRY or orange EXIT.</div>
     <div class="result" id="result" role="status" aria-live="polite"></div>
 
     <h2>Recent scans</h2>
@@ -199,7 +199,8 @@
 
     <label for="cfgMode">Scan mode</label>
     <select id="cfgMode">
-      <option value="AUTO">Auto (first OUT, then IN, alternating)</option>
+      <option value="AUTO">⚡ Auto IN / OUT (automatic)</option>
+      <option value="MANUAL">✋ Manual IN / OUT (choose after scan)</option>
       <option value="IN">Entry gate only (always IN)</option>
       <option value="OUT">Exit gate only (always OUT)</option>
     </select>
@@ -248,7 +249,11 @@
       $('cfgMode').value = cfg.mode;
       $('cfgGate').value = cfg.gate;
       $('cfgDevice').value = cfg.device;
-      $('modePill').textContent = cfg.mode === 'IN' ? 'Entry — IN' : cfg.mode === 'OUT' ? 'Exit — OUT' : 'Auto OUT / IN';
+      $('modePill').textContent = cfg.mode === 'IN' ? '🟢 Entry — IN' : cfg.mode === 'OUT' ? '🟠 Exit — OUT' : cfg.mode === 'MANUAL' ? '✋ Manual IN / OUT' : '⚡ Auto IN / OUT';
+      $('manualInBtn').hidden = cfg.mode !== 'MANUAL';
+      $('manualOutBtn').hidden = cfg.mode !== 'MANUAL';
+      $('manualModeHint').hidden = cfg.mode !== 'MANUAL';
+      $('manualActions').hidden = true;
       $('gatePill').textContent = cfg.gate + (cfg.device ? ' · ' + cfg.device : '');
     }
     function readConfigFromUi() {
@@ -370,6 +375,38 @@
       busy = true;
       showResult('wait', 'Checking...', '<div class="meta">' + esc(code) + '</div>');
 
+      if (cfg.mode === 'MANUAL') {
+        const lookup = await callApi({ action: 'lookupStudent', barcode: code });
+        busy = false;
+        if (lookup && lookup.ok && lookup.found && lookup.student) {
+          $('manual').value = lookup.student.barcode || code;
+          $('manualActions').hidden = false;
+          showResult('wait', 'Student verified — choose an action', '<div class="name">' + esc(lookup.student.name) + '</div><div class="meta">' + esc(lookup.student.reg || '') + ' · ' + esc(lookup.student.dept || '') + ' · Year ' + esc(lookup.student.year || '') + '</div><div class="meta">Use the green ENTRY or orange EXIT button below.</div>');
+          addHistory('err', 'VERIFIED', lookup.student.name || code); beep(true);
+        } else {
+          $('manualActions').hidden = true;
+          showResult('err', 'Student not found', '<div class="meta">' + esc((lookup && lookup.message) || 'Check the barcode and try again.') + '</div>');
+          addHistory('err', 'NOT FOUND', code); beep(false); delete recent[code.toUpperCase()];
+        }
+        return;
+      }
+
+      if (cfg.mode === 'MANUAL') {
+        const lookup = await callApi({ action: 'lookupStudent', barcode: code });
+        busy = false;
+        if (lookup && lookup.ok && lookup.found && lookup.student) {
+          $('manual').value = lookup.student.barcode || code;
+          $('manualActions').hidden = false;
+          showResult('wait', 'Student verified — choose an action', '<div class="name">' + esc(lookup.student.name) + '</div><div class="meta">' + esc(lookup.student.reg || '') + ' · ' + esc(lookup.student.dept || '') + ' · Year ' + esc(lookup.student.year || '') + '</div><div class="meta">Use the green ENTRY or orange EXIT button below.</div>');
+          addHistory('err', 'VERIFIED', lookup.student.name || code); beep(true);
+        } else {
+          $('manualActions').hidden = true;
+          showResult('err', 'Student not found', '<div class="meta">' + esc((lookup && lookup.message) || 'Check the barcode and try again.') + '</div>');
+          addHistory('err', 'NOT FOUND', code); beep(false); delete recent[code.toUpperCase()];
+        }
+        return;
+      }
+
       const r = await callApi({ action: 'scan', barcode: code, mode: cfg.mode, gate: cfg.gate, device: cfg.device });
       busy = false;
 
@@ -407,6 +444,7 @@
       busy = false;
       if (r && r.ok) {
         $('manual').value = '';
+        $('manualActions').hidden = true;
         showResult(direction === 'IN' ? 'in' : 'out', 'Manual ' + direction + ' recorded', '<div class="name">' + esc(r.student.name) + '</div><div class="meta">' + esc(r.student.reg) + ' · ' + esc(r.student.dept) + '</div><div class="meta">' + esc(r.timestamp || '') + '</div>');
         addHistory(direction === 'IN' ? 'in' : 'out', 'MANUAL ' + direction, r.student.name || code); beep(true);
       } else {

@@ -326,6 +326,38 @@
         '<li><span>' + esc(h.text) + '</span><span class="tag ' + h.kind + '">' + esc(h.label) + '</span></li>').join('');
     }
 
+    // Keep the scan result live while the admin reviews the hostel outing request.
+    // Polls quickly at first; the backend status is authoritative.
+    async function watchOutingStatus(requestId, student, code) {
+      const started = Date.now();
+      let delayMs = 2200;
+      while (Date.now() - started < 10 * 60 * 1000) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        const status = await callApi({ action: 'getOutingStatus', requestId });
+        if (status && status.ok && status.found) {
+          const state = String(status.status || '').toUpperCase();
+          if (state === 'APPROVED') {
+            showResult('out', 'OUT — APPROVED', '<div class="name">' + esc(status.studentName || student.name || code) + '</div><div class="meta">Your hostel outing request was approved by ' + esc(status.approvedBy || 'the administrator') + '.</div><div class="meta">OUT movement has been recorded. Request: ' + esc(requestId) + '</div>');
+            addHistory('out', 'OUT APPROVED', status.studentName || student.name || code); beep(true); return;
+          }
+          if (state === 'REJECTED') {
+            showResult('err', 'REQUEST REJECTED', '<div class="name">' + esc(status.studentName || student.name || code) + '</div><div class="meta">Your hostel outing request was rejected. Student remains IN.</div><div class="meta">Request: ' + esc(requestId) + '</div>');
+            addHistory('err', 'REJECTED', status.studentName || student.name || code); beep(false); return;
+          }
+          if (state === 'CANCELLED') {
+            showResult('err', 'REQUEST CANCELLED', '<div class="name">' + esc(status.studentName || student.name || code) + '</div><div class="meta">This outing request was cancelled.</div>');
+            addHistory('err', 'CANCELLED', status.studentName || student.name || code); return;
+          }
+          if (state === 'RETURNED') {
+            showResult('in', 'RETURN RECORDED', '<div class="name">' + esc(status.studentName || student.name || code) + '</div><div class="meta">This outing has already been marked returned.</div>'); return;
+          }
+        }
+        delayMs = 3000;
+      }
+      // Leave the request visible as pending if this device stays open beyond the polling window.
+      showResult('wait', 'Still waiting for approval', '<div class="name">' + esc(student.name || code) + '</div><div class="meta">No final decision received yet. Refresh or scan again later.</div><div class="meta">Request: ' + esc(requestId) + '</div>');
+    }
+
     /* ---------- scanning ---------- */
     async function handleCode(raw) {
       const code = String(raw || '').trim();
@@ -345,6 +377,7 @@
         const s = r.student || {};
         showResult('wait', 'Hostel permission pending', '<div class="name">' + esc(s.name || code) + '</div><div class="meta">' + esc(r.message || 'Waiting for admin approval.') + '</div><div class="meta">Request: ' + esc(r.requestId || '') + '</div>');
         addHistory('err', 'PENDING APPROVAL', s.name || code); beep(false);
+        if (r.requestId) watchOutingStatus(r.requestId, s, code);
       } else if (r.ok) {
         const s = r.student || {};
         const kind = r.direction === 'IN' ? 'in' : 'out';

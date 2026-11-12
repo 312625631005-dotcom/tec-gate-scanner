@@ -409,14 +409,14 @@
     <select id="deskScanMode">
       <option value="AUTO">⚡ Auto IN / OUT (automatic)</option>
       <option value="MANUAL">✋ Manual IN / OUT (choose after scan)</option>
-      <option value="IN">🟢 Entry gate only (always IN)</option>
-      <option value="OUT">🟠 Exit gate only (always OUT)</option>
+      <option value="IN">🟢 Only IN — every scan records Entry</option>
+      <option value="OUT">🟠 Only OUT — every scan records Exit</option>
     </select>
     <label for="deskGateName">Gate name</label>
     <input id="deskGateName" value="Main Gate" autocomplete="off">
     <label for="deskDeviceName">Device name</label>
     <input id="deskDeviceName" value="Security Desk" autocomplete="off">
-    <div class="small" style="margin-top:8px">The selected mode is saved on this browser. Auto records immediately; Manual shows both action buttons after student verification; Entry-only and Exit-only record only the selected direction.</div>
+    <div class="small" style="margin-top:8px">Choose one mode and press Save. This setting applies to this security desk only. Auto starts with IN and then alternates IN/OUT; Manual shows both action buttons after student verification; Only IN and Only OUT always record the selected direction.</div>
     <button type="button" class="btn" id="saveDeskSettings" style="margin-top:12px">💾 Save Settings</button>
     <span id="deskSettingsMessage" class="small" style="display:inline-block;margin-left:8px"></span>
   </section>
@@ -433,7 +433,7 @@
       autocomplete="off"
       autofocus
     >
-    <div class="small" style="margin-top:8px">Scan a student ID or type the barcode/register number, then choose the correct action below. Scanning only verifies the student; it does not record entry or exit by itself.</div>
+    <div class="small" style="margin-top:8px">Scan a student ID or type the barcode/register number. The selected Scan Mode controls what happens next: Auto records automatically, Manual asks you to choose Entry or Exit, and Only IN / Only OUT records that direction.</div>
     <div id="scanbar" class="scanbar"></div>
 
     <div id="studentPanel" class="panel" hidden></div>
@@ -447,7 +447,7 @@
     </div>
 
     <div id="message" role="status" aria-live="polite" class="status info">
-      Ready. Scan a student barcode to display their details and choose Entry or Exit.
+      Ready. Scan a student barcode. The active Scan Mode determines the action.
     </div>
 
     <div class="small">Convenience: use a USB barcode scanner (with Enter suffix), or type a barcode/register number and press Enter. Each scan requires an explicit Entry or Exit selection to avoid accidental records. Duplicate scans are ignored briefly in this browser.</div>
@@ -514,6 +514,14 @@
       document.getElementById('deskDeviceName').value = deskConfig.device || 'Security Desk';
       document.getElementById('deskModeStatus').textContent = deskConfig.mode === 'AUTO' ? '⚡ Auto IN / OUT' : deskConfig.mode === 'IN' ? '🟢 Entry-only (IN)' : deskConfig.mode === 'OUT' ? '🟠 Exit-only (OUT)' : '✋ Manual IN / OUT';
       document.getElementById('deskSubtitle').textContent = (deskConfig.gate || 'Main Gate') + ' · ' + (deskConfig.device || 'Security Desk');
+      const scanHelp = document.querySelector('.app .small');
+      if (scanHelp) scanHelp.textContent = deskConfig.mode === 'MANUAL'
+        ? 'Manual mode: scan and verify the student, then choose green ENTRY (IN) or orange EXIT (OUT).'
+        : deskConfig.mode === 'AUTO'
+          ? 'Auto mode: each valid scan records the opposite of the student’s last recorded direction. The first scan starts with ENTRY (IN).'
+          : deskConfig.mode === 'IN'
+            ? 'Only IN mode: every valid scan records ENTRY (IN).'
+            : 'Only OUT mode: every valid scan records EXIT (OUT). Hostel students still require approval before an OUT is recorded.';
       manualActions.hidden = true; actionHint.hidden = true;
     }
     document.getElementById('deskSettingsToggle').addEventListener('click', () => document.getElementById('deskSettings').classList.toggle('open'));
